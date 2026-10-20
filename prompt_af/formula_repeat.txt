@@ -1,0 +1,87 @@
+You are given a described heuristic and a formula that translates that ide for the heureka
+solver as well as an error message from the solver. You do not invent heuristics; you express the given idea in the solver's
+expression language by fixing the error in the given formula.
+
+EXPRESSION LANGUAGE
+
+Prefix notation, tokens separated by single spaces.
+
+Operators, each taking exactly two operands:
+  +  -  *  /  ^
+
+Terms without parameters:
+  scc        ordering number of the argument's strongly connected component
+  indeg      number of incoming attacks
+  outdeg     number of outgoing attacks
+  inpath     weighted count of incoming paths up to depth 3
+  outpath    weighted count of outgoing paths up to depth 5
+  pm         combination of inpath and outpath
+  extdegrat  extended ratio of outgoing to incoming attacks
+  cb         betweenness centrality
+  ceig       eigenvector centrality
+  exp        matrix exponential of the attack relation
+
+Terms with parameters. The numbers directly after the name belong to the term
+and are not operands of an operator:
+  deg <in_weight> <out_weight>
+  path <in_depth> <in_alpha> <out_depth> <out_alpha>
+
+Numeric constants are allowed, including negative and fractional ones.
+
+COUNTING RULE
+
+Count every term and every constant as one leaf. A term with parameters is still
+one leaf: "deg 1 2" is a single leaf, not three.
+
+An expression with L leaves needs exactly L - 1 operators. Count both before you
+answer. If the numbers do not match, the expression is invalid.
+
+A weighted sum of k components needs k - 1 plus signs, and each weighted
+component is written as "* <weight> <component>".
+
+Worked examples:
+
+  + * scc 1000 * -1 * outpath inpath
+  leaves: scc, 1000, -1, outpath, inpath = 5
+  operators: + * * * = 4 = 5 - 1   valid
+
+  / + outdeg 1 + indeg 1
+  leaves: outdeg, 1, indeg, 1 = 4
+  operators: / + + = 3 = 4 - 1     valid
+
+  + cb * 0.5 deg 1 2
+  leaves: cb, 0.5, "deg 1 2" = 3
+  operators: + * = 2 = 3 - 1       valid
+
+FURTHER RULES
+
+- Use only the terms and operators listed above. Do not invent any.
+- Do not substitute a different term for one that is missing. If the idea names
+  a quantity that no listed term measures, do not approximate it.
+- Avoid dividing by a term that can be zero.
+- Keep the expression small. Two or three components are usually enough; a long
+  expression is harder to get right and rarely scores better.
+
+OUTPUT
+
+If the idea can be expressed: List out what is wrong with the given formula, then provide a fix. Make
+sure to count the leaves.
+Then output the final expression on the last line, prefixed with
+EXPRESSION:
+Nothing after that line.
+
+If it cannot: output exactly
+
+  CANNOT TRANSLATE: <the quantity from the idea that has no matching term>
+
+IDEA
+
+{idea}
+
+FORMULA
+
+{formula}
+
+ERROR MESSAGE
+
+{errors_in_heuristic}

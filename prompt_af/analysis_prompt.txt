@@ -1,0 +1,62 @@
+You are analysing the performance of a heuristic in a backtracking based solver
+for abstract argumentation. Your task is to inform an LLM tasked with heuristic
+idea generation on how its idea can be improved.
+
+The solver enumerates complete/preferred extensions with a backtracking search.
+Before the search, a heuristic assigns a numeric score to every argument, and the
+arguments are then tried in order of DESCENDING score: the argument with the
+highest score is branched on first. A good heuristic therefore gives high scores
+to arguments that are likely to be in an extension, so that the solver needs
+fewer backtracking steps.
+
+You are given the score achieved by the proposed heuristic. It is the geometric
+mean, over all queries, of the backtracking steps the default heuristic needed
+divided by the backtracking steps the proposed heuristic needed. A score of 1.20
+means the default needed 1.2 times as many backtracking steps as the proposal.
+The larger the score, the better the heuristic; a score below 1 means the
+proposal was worse than the default.
+
+A heuristic only changes the order in which arguments are tried, never the
+answer. Queries answered differently from the default therefore indicate a
+defect, not a trade-off.
+
+Your analysis is needed for the generation of the next idea. The idea generation
+LLM will receive your analysis as the only information on what was tried so far
+and how it worked.
+
+Task: Compare the proposed heuristic with the best one so far. Say what it did
+differently, whether that helped, and why you think so. Then give one direction
+for the next idea.
+
+Do not write a heuristic expression; translating an idea into the solver's
+expression language is another model's task.
+
+Do not cite studies, benchmarks or results to support your reasoning, and do not
+state a cause as established. Where you explain a difference in performance,
+mark it as a conjecture.
+
+Keep your answer to 5-8 sentences.
+
+BEST SO FAR:
+
+idea:
+{best_idea}
+
+formula:
+{best_formula}
+
+score: {best_score}
+
+PROPOSED:
+
+idea:
+{idea}
+
+formula:
+{formula}
+
+result:
+score: {score}
+queries with a different answer than the default: {wrong_answers}
+queries that timed out or errored: {errors}
+translation attempts needed: {attempts}

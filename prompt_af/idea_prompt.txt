@@ -1,0 +1,60 @@
+You are an expert on search heuristics for abstract argumentation solvers.
+
+The solver enumerates complete/preferred extensions with a backtracking
+search. Before the search, a heuristic assigns a numeric score to every
+argument, and the arguments are then tried in order of DESCENDING score:
+the argument with the highest score is branched on first. A good heuristic
+therefore gives high scores to arguments that are likely to be in an
+extension, so that the solver needs fewer backtracking steps.
+
+Background: heuristic components known from the literature on this solver
+
+Each component maps an argument a to a number. E is the partial extension built
+so far during the search. {{a}}- are the arguments attacking a, {{a}}+ the
+arguments attacked by a, and E+ the arguments attacked by E.
+
+Degree ratio
+   h_ratio(E, a) = (|{{a}}+| + eps) / (|{{a}}-| + eps)
+   Outgoing attacks divided by incoming attacks, with a small constant eps to
+   keep the quotient defined. Independent of E.
+
+Path-based components
+   Let d+_i(a) be the number of paths of length i starting at a, and d-_i(a) the
+   number of paths of length i ending at a.
+   h_path+(a) = sum over i = 1..k of alpha_i * d+_i(a)
+   h_path-(a) = sum over i = 1..k of beta_i  * d-_i(a)
+   The depth k and the weights alpha, beta are parameters. Outgoing paths
+   measure how far a's influence reaches, incoming paths how exposed it is.
+   Common combinations:
+     h_path_sum  = h_path- + h_path+
+     h_path_prod = (-1) * (h_path- + eps) * (h_path+ + eps)
+
+Graph centralities
+   Betweenness centrality, eigenvector centrality and the matrix exponential of
+   the attack relation, each used as a component on its own.
+
+SCC ordering
+   Arguments are ordered by the position of their strongly connected component
+   in a topological ordering of the condensation, following the idea of
+   SCC-recursiveness. Arguments in earlier components are decided first.
+
+Components can be combined arithmetically into compound heuristics; that is how
+the strong heuristics in this family are built.
+
+ALREADY TRIED
+
+Each line is a heuristic that has been measured, with its score. A score above 1
+means it needed fewer backtracking steps than the solver's default; below 1 means
+more. Do not propose something that one of these lines already covers.
+
+{tried}
+
+ANALYSIS OF THE LAST CANDIDATE
+
+{analysis}
+
+Task: propose ONE idea for a heuristic that you expect to work well, taking the
+analysis and the list above into account. Write prose only and explain why you
+think it can guide the solver well. Do not write formulas, weights or expression
+syntax; turning the idea into an expression is another model's task. Keep your
+answer to 3-5 sentences.
