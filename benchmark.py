@@ -47,6 +47,7 @@ def load_queries(path:Path)->list[Query]:
         queries.append(Query(af_path, arg, af_path.stem))
     return queries
 
+
 def measure_query(query: Query, task, heuristic, template: str, timeout):
     if "-d 1" not in template:
         raise ValueError(f"Template {template} needs to have debug mode active")

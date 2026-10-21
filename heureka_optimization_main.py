@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 import time
 
-from benchmark import load_queries, load_baseline, calculate_candidate_score, Query
+from benchmark import load_queries, load_baseline, calculate_candidate_score, Query, load_expected_answers
 from config import Config
 from file_utils import read_file
 from llm_api import GPTCallAPI
@@ -15,7 +15,7 @@ BENCHMARK = Path("/work/data/G2IO_heureka_dcpr/benchmark_PR_DC_20261016_120429_1
 RESULTS = Path(__file__).resolve().parent / "work" / "results"
 SOLVER_CMD = "heureka -p {task} -f {file} -H {heuristic} -a {arg} -d 1"
 MAX_TRIES = 5
-ITERATIONS = 10
+ITERATIONS = 30
 
 # the solver's own heuristic for every semantics except ST; it is iteration 0 and
 # the reference every score is relative to, so its score is 1.0 by definition
@@ -151,6 +151,7 @@ def main():
     }, indent=2))
 
     queries = load_queries(BENCHMARK)
+    expected_answers = load_expected_answers(BENCHMARK)
     baseline = load_baseline(BENCHMARK, task, SOLVER_CMD, timeout)
 
     best = {"iteration": 0, "idea": DEFAULT_IDEA, "formula": DEFAULT_HEURISTIC,

@@ -7,39 +7,99 @@ the argument with the highest score is branched on first. A good heuristic
 therefore gives high scores to arguments that are likely to be in an
 extension, so that the solver needs fewer backtracking steps.
 
-Background: heuristic components known from the literature on this solver
+WHAT THE HEURISTIC CAN SEE
 
-Each component maps an argument a to a number. E is the partial extension built
-so far during the search. {{a}}- are the arguments attacking a, {{a}}+ the
-arguments attacked by a, and E+ the arguments attacked by E.
+The score is computed ONCE, before the search starts, from the attack graph
+alone. Every argument keeps its number for the whole search.
 
-Degree ratio
-   h_ratio(E, a) = (|{{a}}+| + eps) / (|{{a}}-| + eps)
-   Outgoing attacks divided by incoming attacks, with a small constant eps to
-   keep the quotient defined. Independent of E.
+Nothing about the state of the search is available: not which arguments are in
+the partial extension, not which have been ruled out, not which attacks have
+already been resolved, not how often an argument has caused a backtrack. Do not
+propose anything that reacts to the extension being built, that rewards or
+penalises an argument for attacking or defending the current extension, or that
+changes as the search proceeds. Such an idea cannot be expressed at all and the
+iteration is wasted.
 
-Path-based components
-   Let d+_i(a) be the number of paths of length i starting at a, and d-_i(a) the
-   number of paths of length i ending at a.
-   h_path+(a) = sum over i = 1..k of alpha_i * d+_i(a)
-   h_path-(a) = sum over i = 1..k of beta_i  * d-_i(a)
-   The depth k and the weights alpha, beta are parameters. Outgoing paths
-   measure how far a's influence reaches, incoming paths how exposed it is.
-   Common combinations:
-     h_path_sum  = h_path- + h_path+
-     h_path_prod = (-1) * (h_path- + eps) * (h_path+ + eps)
+It would also achieve nothing. An argument that attacks an already accepted
+argument has been ruled out by the solver and will never be branched on again,
+so a penalty attached to it would never be applied to anything.
 
-Graph centralities
-   Betweenness centrality, eigenvector centrality and the matrix exponential of
-   the attack relation, each used as a component on its own.
+What you can use instead is the fixed structure of the attack graph: who
+attacks whom, how far attacks reach, and how the graph decomposes into cycles.
 
-SCC ordering
-   Arguments are ordered by the position of their strongly connected component
-   in a topological ordering of the condensation, following the idea of
-   SCC-recursiveness. Arguments in earlier components are decided first.
+WHAT THE SEARCH REWARDS
 
-Components can be combined arithmetically into compound heuristics; that is how
-the strong heuristics in this family are built.
+An argument whose attackers are all already decided can be decided without
+guessing. An argument whose attackers are still open forces a choice that may
+later have to be undone. The cheapest orderings are therefore the ones that
+follow the direction of attack: settle the causes before the effects. Cycles
+are where this is impossible, because every argument in a cycle depends on the
+others; those are the places where a heuristic has to make a real guess.
+
+AVAILABLE MEASUREMENTS
+
+Each of these maps an argument to a number. Another model turns your idea into
+an expression, so describe what you want in these terms rather than inventing
+quantities that are not listed.
+
+Component order
+   Arguments are grouped into strongly connected components, and the components
+   are ordered so that a component attacking another gets the higher value.
+   Within a component all arguments share one value, so this says nothing about
+   the order inside a cycle. Two components with no attack path between them get
+   an arbitrary relative order.
+   Its values run from 1 to the number of components, which on a real instance is
+   in the hundreds. Any weight above a small fraction therefore makes this term
+   dominate every other term in a sum, and the rest of the heuristic only decides
+   the order WITHIN a component. Giving it a small weight instead is a real and
+   untried choice: it lets the other measurements move arguments across component
+   boundaries.
+
+Incoming attack pressure
+   Counts the arguments that reach a by attack, by distance, with alternating
+   sign: direct attackers count against a, their attackers — a's defenders —
+   count for it, the next level against again. Each level is damped relative to
+   the one before, and both the depth and the strength of the damping are free
+   parameters. With strong damping the term is barely more than the negated
+   number of direct attackers; with weak damping the defenders matter almost as
+   much as the attackers. Its maximum is 0, reached by unattacked arguments.
+
+Outgoing reach
+   Counts the arguments a reaches by attack, by distance, damped but without the
+   alternation — everything counts positively, near more than far. Depth and
+   damping are free parameters. High means the argument's influence spreads wide.
+
+Degree
+   The plain number of incoming or outgoing attacks, or a weighted mix of the
+   two with weights of your choosing, including negative ones.
+
+Neighbourhood quality
+   High when the arguments a attacks have many outgoing and few incoming attacks
+   themselves, and the arguments attacking a have the reverse. Note that this
+   says nothing about a's own degree — only about the company it keeps.
+
+Betweenness
+   How many shortest attack chains in the graph run through the argument. High
+   means the argument is a bottleneck between regions of the graph. This is by
+   far the most expensive measurement to compute.
+
+Inverse structural centrality
+   The negated eigenvector centrality. It is HIGH for arguments in the
+   structurally peripheral parts of the graph and LOW for arguments in densely
+   interconnected regions. Arguments that lie on no cycle all receive the same
+   maximal value.
+
+THINGS WORTH KNOWING BEFORE PROPOSING
+
+Incoming attack pressure, outgoing reach and plain degree are all built from the
+same counts of attack chains and differ only in depth, damping and sign.
+Combining two of them adds less variety than it appears to; changing the damping
+of one of them is often the larger change.
+
+Equal values are broken by argument number, so a measurement that produces many
+ties leaves that part of the order to the input file rather than to the
+heuristic. Inverse structural centrality in particular assigns one identical
+value to every argument outside a cycle.
 
 ALREADY TRIED
 
@@ -56,5 +116,6 @@ ANALYSIS OF THE LAST CANDIDATE
 Task: propose ONE idea for a heuristic that you expect to work well, taking the
 analysis and the list above into account. Write prose only and explain why you
 think it can guide the solver well. Do not write formulas, weights or expression
-syntax; turning the idea into an expression is another model's task. Keep your
-answer to 3-5 sentences.
+syntax, turning the idea into an expression is another model's task. You may say
+in words that one component should weigh much more or much less than another.
+Keep your answer to 3-5 sentences.
