@@ -52,7 +52,9 @@ def measure_query(query: Query, task, heuristic, template: str, timeout):
     if "-d 1" not in template:
         raise ValueError(f"Template {template} needs to have debug mode active")
     run_result = run_once(template, query.af_path, task, query.arg, timeout, heuristic)
-    result = {}
+    # wall clock of the solver call, kept for every outcome so the per-query log
+    # shows how close a query came to the timeout
+    result = {'runtime_s': run_result.get('runtime_s')}
     if run_result.get('timed_out'):
         result['backtracks'] = inf
         result['timed_out'] = True
@@ -143,10 +145,14 @@ def calculate_candidate_score(queries: list[Query], baseline: dict, heuristic: s
     Per query the ratio of baseline backtracks to candidate backtracks; above 1
     means fewer backtracks than the default. A run that aborts or answers
     differently than the baseline gets a fixed bad ratio instead.
+
+    Returns (score, wrong_answers, errors, per_query). per_query holds one record
+    per compared query, for the run's queries.jsonl.
     """
     wrong_answers = 0
     errors = 0
     ratios = {}
+    per_query = []
 
     for query in tqdm(queries):
         # queries without a baseline value have nothing to compare against
@@ -154,27 +160,47 @@ def calculate_candidate_score(queries: list[Query], baseline: dict, heuristic: s
             continue
 
         full_result = measure_query(query, task, heuristic, template, timeout)
+        backtracks_baseline = baseline[query.name]['backtracks']
+        backtracks_query = full_result.get('backtracks')
 
         # an aborted run has neither an answer nor a counter, so it is checked first
         if full_result.get('timed_out') or full_result.get('error') is not None:
             ratios[query.name] = timeout_penalty
             errors += 1
-            continue
-
         # a heuristic only changes the search order, so a different answer is a defect
-        if full_result.get('accepted') != baseline[query.name]['accepted']:
+        elif full_result.get('accepted') != baseline[query.name]['accepted']:
             ratios[query.name] = wrong_answer_penalty
             wrong_answers += 1
-            continue
+        else:
+            # +1 on both sides to avoid division by 0 errors if no backtracks occur
+            ratios[query.name] = (backtracks_baseline + 1) / (backtracks_query + 1)
 
-        # +1 on both sides to avoid division by 0 errors if no backtracks occur
-        backtracks_baseline = baseline[query.name]['backtracks']
-        backtracks_query = full_result.get('backtracks')
-        ratios[query.name] = (backtracks_baseline + 1) / (backtracks_query + 1)
+        per_query.append(query_record(query.name, full_result, backtracks_baseline,
+                                      ratios[query.name]))
 
     if not ratios:
         raise ValueError("No query could be compared against the baseline.")
 
     # geometric mean
     score = math.exp(mean(math.log(r) for r in ratios.values()))
-    return score, wrong_answers, errors
+    return score, wrong_answers, errors, per_query
+
+
+def query_record(name: str, full_result: dict, backtracks_baseline, ratio: float) -> dict:
+    """One line of queries.jsonl. inf becomes None, since json.dumps would write
+    Infinity, which is not valid JSON. The error is reduced to its first Fail:
+    line, which names the cause."""
+    backtracks = full_result.get('backtracks')
+    error = full_result.get('error')
+    if error is not None:
+        error = error[0] if error else "solver failed without a Fail: line"
+    return {
+        'query': name,
+        'baseline_backtracks': backtracks_baseline,
+        'backtracks': None if backtracks == inf else backtracks,
+        'ratio': ratio,
+        'accepted': full_result.get('accepted'),
+        'timed_out': full_result.get('timed_out'),
+        'error': error,
+        'runtime_s': full_result.get('runtime_s'),
+    }

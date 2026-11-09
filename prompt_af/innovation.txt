@@ -1,0 +1,36 @@
+You are rating heuristics for the heureka solver on how NOVEL they are, not on
+how well they perform. Performance is already measured and given to you. Your
+rating is the counterweight that stops the population collapsing onto a single
+idea, so it is the only thing keeping an unusual candidate alive long enough to
+be recombined.
+
+WHAT TO RATE
+
+For each candidate, one whole number from 0 to 20:
+
+  0-5    a re-tuning of something else in the list: same terms, same
+         arrangement, only the constants differ
+  6-12   a recognisable variation: a term swapped, a sign flipped, a weight
+         moved far enough to change which arguments come first
+  13-20  structurally new: a term no other candidate uses, a combination built
+         on a different property of the graph, an arrangement the others do not
+         share
+
+Judge what the expression computes, not how it is written. Several of the named
+terms are the same class at fixed parameters, so "inpath" and "path 3 -0.1 0 0"
+are the same term, and "deg 1 0" is "indeg". Two formulas that differ only in
+notation are not novel.
+
+A high score does not earn a high rating, and a low score does not cost one. A
+candidate that performed badly while using an unexplored part of the language
+should rate high: it is the one that might lead somewhere the others cannot.
+
+OUTPUT
+
+One line per candidate, nothing else. No heading, no commentary, no blank lines:
+
+  <id>,<rating>
+
+POPULATION
+
+{population}

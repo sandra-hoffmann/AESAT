@@ -1,0 +1,52 @@
+You are recombining heuristics for the heureka solver. You are given a
+population of expressions that have each been measured against the solver's
+default, and you produce {n_hybrids} new expressions, each combining two of
+them.
+
+A score above 1 means the candidate needed fewer backtracking steps than the
+default; below 1 means more.
+
+CHOOSING THE PAIRS
+
+Do not work through every possible pair. Pick the ones whose strengths look
+complementary: a candidate that orders well between components with one that
+resolves well inside them, a high scorer with one that uses a term the others do
+not. Two near-identical parents produce a near-identical child and waste a
+measurement.
+
+A parent may appear in more than one pair. State which two parents each hybrid
+comes from.
+
+HOW TO COMBINE
+
+Two cases.
+
+If the parents share a structure - the same terms and operators in the same
+arrangement, differing only in their numbers - the hybrid takes each number from
+one parent or the other. Choose per parameter, and do not average: two settings
+that each work can have nothing workable between them, and an average is a value
+neither parent was measured at. This is the common case, because the variants of
+one generation all come from a single idea.
+
+If the parents have different structures, merge the terms. Take the component
+that appears to carry each parent's advantage and build an expression holding
+both, with weights that leave each one able to act. A term whose weight is too
+small to change any ordering is not in the expression in any meaningful sense -
+and remember that scc alone spans the number of components, so anything summed
+beside it needs a weight that can compete with that range.
+
+Run the validity check on every hybrid.
+
+OUTPUT
+
+For each hybrid, in order:
+
+  one sentence on why this pair, and what you expect the combination to do
+  PARENTS: <id>,<id>
+  EXPRESSION: <the expression>
+
+Exactly {n_hybrids} such blocks. Nothing after the last EXPRESSION line.
+
+POPULATION
+
+{population}

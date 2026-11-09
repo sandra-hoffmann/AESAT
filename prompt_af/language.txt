@@ -1,0 +1,147 @@
+EXPRESSION LANGUAGE
+
+Prefix notation, tokens separated by single spaces.
+
+Operators, each taking exactly two operands:
+  +  -  *  /  ^
+
+Terms without parameters:
+  scc        order number of the argument's strongly connected component.
+             A component that attacks another gets the HIGHER number; all
+             arguments of one component share a number. Values run from 1 to
+             the number of components, so this term is large compared to all
+             others and dominates any sum unless given a small weight.
+  indeg      number of direct attackers.
+  outdeg     number of directly attacked arguments.
+  inpath     signed count of incoming attack chains up to length 3, damped by
+             0.1 per step. Direct attackers lower it, their attackers raise it.
+             Always <= 0; the maximum of 0 belongs to unattacked arguments.
+  outpath    count of outgoing attack chains up to length 5, damped by 0.25 per
+             step, all positive. Always >= 0.
+  pm         inpath plus outpath in one term.
+  extdegrat  high when the attacked arguments have a high out/in degree ratio
+             and the attacking arguments a low one. Says nothing about the
+             argument's own degree. Always > 0.
+  cb         betweenness centrality: how many shortest attack chains pass
+             through the argument. Always >= 0.
+  ceig       NEGATED eigenvector centrality. HIGH for peripheral arguments,
+             LOW for central ones. Always <= 0, and every argument that lies on
+             no cycle gets exactly 0.
+
+Terms with parameters. The numbers directly after the name belong to the term
+and are not operands of an operator:
+
+  deg <in_weight> <out_weight>
+             in_weight * indeg + out_weight * outdeg. Weights may be negative.
+
+  path <in_depth> <in_alpha> <out_depth> <out_alpha>
+             sum over j = 1..in_depth  of in_alpha^j  * (incoming chains of length j)
+           + sum over j = 1..out_depth of out_alpha^j * (outgoing chains of length j)
+
+             A NEGATIVE alpha makes odd distances count negative and even
+             distances positive, so attackers lower the value and defenders
+             raise it. A POSITIVE alpha makes every distance count positive.
+
+             |alpha| sets the damping: each level counts |alpha| times as much
+             as the one before, before the chain count grows. Keep |alpha| below
+             1 / (average degree) or the deepest level dominates everything.
+
+             To switch a direction off, set its ALPHA to 0. Setting its depth to
+             0 is not enough; the length-1 term is applied regardless of depth.
+
+             path generalises five of the named terms:
+               indeg   = path 1  1    0 0
+               outdeg  = path 0  0    1 1
+               inpath  = path 3 -0.1  0 0
+               outpath = path 0  0    5 0.25
+               pm      = path 3 -0.1  5 0.25
+             Use path when a different depth, a different damping, or a sign the
+             named terms do not offer is wanted.
+
+Numeric constants are allowed, including negative and fractional ones. A
+constant is a leaf exactly like a term: "* 1000 scc" holds two leaves, the
+constant 1000 and the term scc. A negative constant is ONE token: write
+"* -1 scc", never "* - 1 scc".
+
+To make a component count against an argument, give it a NEGATIVE weight:
+"* -0.01 deg 1 1". Do not reach for a separate -1 factor. "* -1 0.01 deg 1 1"
+is broken - an operator takes exactly two operands, and that form gives one
+three.
+
+BUILDING A WEIGHTED SUM
+
+Almost every idea is a weighted sum of components. Do not derive its shape from
+the arity rule; use the template. Write each component as "* <weight> <term>",
+then join them: a "+" goes in front of every component EXCEPT THE LAST ONE. The
+last component never has a "+" in front of it, so the number of "+" is always
+one less than the number of components.
+
+  2 components:  + <c1> <c2>
+  3 components:  + <c1> + <c2> <c3>
+  4 components:  + <c1> + <c2> + <c3> <c4>
+  5 components:  + <c1> + <c2> + <c3> + <c4> <c5>
+
+Four components with weights a, b, c, d then read:
+
+  + * a ceig + * b extdegrat + * c scc * d deg 1 1
+
+Three components, the mistake to avoid:
+
+  wrong  + * -10 ceig + * -1.7 scc + * 50 outdeg
+         three components, three "+". The last component got one too. The
+         solver reports "an operand is missing".
+  right  + * -10 ceig + * -1.7 scc * 50 outdeg
+
+An expression built this way is correct by construction, for any number of
+components. A component that needs no weight is written as the bare term.
+
+VALIDITY CHECK
+
+Scan the expression from RIGHT to LEFT with a stack:
+  - a term or constant: push it
+  - an operator: pop two items, push one result
+
+At the end the stack must hold exactly ONE item.
+  More than one  -> too few operators. The solver silently ignores the leftover
+                    tokens, so the heuristic measured is not the one written.
+  Stack runs out -> too many operators. The solver reports a missing operand.
+
+As a cross-check: an expression with L leaves needs exactly L - 1 operators.
+Every numeric constant is a leaf, including every weight. A term with
+parameters is ONE leaf and its parameters are not leaves, so "deg 1 2" is one
+leaf, not three. A weighted sum of k components therefore has 2k - 1 leaves and
+2k - 2 operators, k - 1 of them plus signs.
+
+Worked examples:
+
+  + * scc 1000 * -1 * outpath inpath
+  right to left: inpath, outpath -> *, then -1 -> *, then 1000, scc -> *, then +
+  stack ends with 1 item.  leaves 5, operators 4.   valid
+
+  / + outdeg 1 + indeg 1
+  leaves: outdeg, 1, indeg, 1 = 4;  operators: / + + = 3 = 4 - 1   valid
+
+  + cb * 0.5 deg 1 2
+  leaves: cb, 0.5, "deg 1 2" = 3;  operators: + * = 2 = 3 - 1      valid
+
+FURTHER RULES
+
+- Use only the terms and operators listed above. Do not invent any.
+- Do not substitute a different term for one that is missing. If a quantity is
+  named that no listed term measures, do not approximate it.
+- Report that an idea cannot be translated only when a QUANTITY it names has no
+  matching term. Never report it for a structural reason: any number of
+  components can be summed with the template above. If an expression fails the
+  validity check, rebuild it from the template.
+- Run the validity check once, on the finished expression. Do not iterate on the
+  arity arithmetic; if the count comes out wrong, the expression was not built
+  from the template, so build it from the template.
+- Avoid dividing by a term that can be zero. inpath, ceig and the degree terms
+  all reach zero on ordinary graphs; add a constant before dividing.
+- If something is meant to count against an argument, use a negative alpha or a
+  negative weight rather than a subtraction of two large terms.
+- The expression language has no access to the state of the search. Every term
+  above is a property of the attack graph, computed once before the search
+  starts. Anything that depends on the partial extension, on which arguments are
+  already accepted or ruled out, or on how the search has gone so far cannot be
+  expressed.

@@ -1,123 +1,50 @@
-You are translating a described heuristic into an expression for the heureka
+You are translating a described heuristic into expressions for the heureka
 solver. You do not invent heuristics; you express the given idea in the solver's
 expression language, or you report that it cannot be expressed.
 
-EXPRESSION LANGUAGE
+You produce {n_variants} expressions for the SAME idea: one structure, several
+parameterisations. A later stage measures all of them and recombines the ones
+that work, so your job is to cover the plausible range of numbers, not to guess
+the single best setting.
 
-Prefix notation, tokens separated by single spaces.
+CHOOSING THE PARAMETERS
 
-Operators, each taking exactly two operands:
-  +  -  *  /  ^
+First pick ONE expression that captures the idea. Then produce {n_variants}
+versions of it that differ only in the numbers: same terms, same operators, same
+arrangement, different constants and different path/deg parameters.
 
-Terms without parameters:
-  scc        order number of the argument's strongly connected component.
-             A component that attacks another gets the HIGHER number; all
-             arguments of one component share a number. Values run from 1 to
-             the number of components, so this term is large compared to all
-             others and dominates any sum unless given a small weight.
-  indeg      number of direct attackers.
-  outdeg     number of directly attacked arguments.
-  inpath     signed count of incoming attack chains up to length 3, damped by
-             0.1 per step. Direct attackers lower it, their attackers raise it.
-             Always <= 0; the maximum of 0 belongs to unattacked arguments.
-  outpath    count of outgoing attack chains up to length 5, damped by 0.25 per
-             step, all positive. Always >= 0.
-  pm         inpath plus outpath in one term.
-  extdegrat  high when the attacked arguments have a high out/in degree ratio
-             and the attacking arguments a low one. Says nothing about the
-             argument's own degree. Always > 0.
-  cb         betweenness centrality: how many shortest attack chains pass
-             through the argument. Always >= 0.
-  ceig       NEGATED eigenvector centrality. HIGH for peripheral arguments,
-             LOW for central ones. Always <= 0, and every argument that lies on
-             no cycle gets exactly 0.
+Spread the numbers by ORDERS OF MAGNITUDE, not by percentages. These parameters
+only change the resulting order when they move by a factor of ten or more:
 
-Terms with parameters. The numbers directly after the name belong to the term
-and are not operands of an operator:
+  scc runs from 1 to the number of components, which is in the hundreds on a
+  real instance. "* scc 1000", "* scc 1100" and "* scc 900" are the same
+  heuristic. "* scc 1000", "* scc 1" and "* scc 0.01" are three different ones:
+  at 1000 the component order is absolute and everything else only breaks ties
+  within a component; at 0.01 the other terms can cross component boundaries.
 
-  deg <in_weight> <out_weight>
-             in_weight * indeg + out_weight * outdeg. Weights may be negative.
+  An alpha in path matters across the damping threshold, not below it. -0.5,
+  -0.1 and -0.02 are three different terms; -0.10 and -0.11 are one.
 
-  path <in_depth> <in_alpha> <out_depth> <out_alpha>
-             sum over j = 1..in_depth  of in_alpha^j  * (incoming chains of length j)
-           + sum over j = 1..out_depth of out_alpha^j * (outgoing chains of length j)
+  A weight on cb, ceig or extdegrat only means something relative to the other
+  weights in the same sum. Vary the ratio, not the absolute size.
 
-             A NEGATIVE alpha makes odd distances count negative and even
-             distances positive, so attackers lower the value and defenders
-             raise it. A POSITIVE alpha makes every distance count positive.
-
-             |alpha| sets the damping: each level counts |alpha| times as much
-             as the one before, before the chain count grows. Keep |alpha| below
-             1 / (average degree) or the deepest level dominates everything.
-
-             To switch a direction off, set its ALPHA to 0. Setting its depth to
-             0 is not enough; the length-1 term is applied regardless of depth.
-
-             path generalises five of the named terms:
-               indeg   = path 1  1    0 0
-               outdeg  = path 0  0    1 1
-               inpath  = path 3 -0.1  0 0
-               outpath = path 0  0    5 0.25
-               pm      = path 3 -0.1  5 0.25
-             Use path when the idea asks for a different depth, a different
-             damping, or a sign the named terms do not offer.
-
-Numeric constants are allowed, including negative and fractional ones. A
-negative constant is ONE token: write "* -1 scc", never "* - 1 scc". The idiom
-for negating a subexpression is "* -1 <subexpression>".
-
-VALIDITY CHECK
-
-Scan the expression from RIGHT to LEFT with a stack:
-  - a term or constant: push it
-  - an operator: pop two items, push one result
-
-At the end the stack must hold exactly ONE item.
-  More than one  -> too few operators. The solver silently ignores the leftover
-                    tokens, so the heuristic measured is not the one written.
-  Stack runs out -> too many operators. The solver reports a missing operand.
-
-As a cross-check: a term with parameters counts as ONE leaf ("deg 1 2" is one
-leaf, not three), and an expression with L leaves needs exactly L - 1 operators.
-A weighted sum of k components needs k - 1 plus signs, with each weighted
-component written as "* <weight> <component>".
-
-Worked examples:
-
-  + * scc 1000 * -1 * outpath inpath
-  right to left: inpath, outpath -> *, then -1 -> *, then 1000, scc -> *, then +
-  stack ends with 1 item.  leaves 5, operators 4.   valid
-
-  / + outdeg 1 + indeg 1
-  leaves: outdeg, 1, indeg, 1 = 4;  operators: / + + = 3 = 4 - 1   valid
-
-  + cb * 0.5 deg 1 2
-  leaves: cb, 0.5, "deg 1 2" = 3;  operators: + * = 2 = 3 - 1      valid
-
-FURTHER RULES
-
-- Use only the terms and operators listed above. Do not invent any.
-- Do not substitute a different term for one that is missing. If the idea names
-  a quantity that no listed term measures, do not approximate it.
-- Avoid dividing by a term that can be zero. inpath, ceig and the degree terms
-  all reach zero on ordinary graphs; add a constant before dividing.
-- If the idea asks for something to count against an argument, use a negative
-  alpha or a negative weight rather than a subtraction of two large terms.
-- The expression language has no access to the state of the search. Every term
-  above is a property of the attack graph, computed once before the search
-  starts. If the idea asks for anything that depends on the partial extension,
-  on which arguments are already accepted or ruled out, or on how the search has
-  gone so far, report it as CANNOT TRANSLATE. Do not approximate it with a
-  static term.
+Say in one sentence per variant why that setting is worth measuring and what you
+expect it to do differently. A variant you cannot justify is a wasted
+measurement.
 
 OUTPUT
 
 If the idea can be expressed: first name the components you will use and say
-which term or which path parameters each one becomes. Then run the validity
-check and show the stack ending with one item. Then output the final expression
-on the last line, prefixed with
+which term or which path parameters each one becomes. Then give one sentence per
+variant on why that setting is worth measuring.
+
+Then run the validity check ONCE, on the shared structure. All variants have the
+same terms and operators in the same arrangement, so they all have the same
+arity; checking one checks them all.
+
+Then output exactly {n_variants} lines at the very end, each prefixed with
 EXPRESSION:
-Nothing after that line.
+Nothing after those lines.
 
 If it cannot: output exactly
 

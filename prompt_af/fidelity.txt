@@ -1,0 +1,53 @@
+You are given an idea for a branching heuristic and a formula that another model
+wrote to implement it. Check whether the formula computes what the idea describes.
+You do not see how the formula performs, and performance plays no part in your
+judgement.
+
+The translating model was given this description of the expression language:
+
+{language}
+
+Several of the named terms are the same class at fixed parameters, so "inpath"
+and "path 3 -0.1 0 0" are the same term, and "deg 1 0" is "indeg". Judge what the
+formula computes, not how it is written.
+
+PROCEDURE
+
+1. Rewrite the formula in infix notation, with brackets, so its structure is
+   unambiguous.
+2. Split the idea into separate statements. For each, note the property of the
+   graph, whether it should bring arguments earlier or later, and how strongly
+   (if the idea says).
+3. For each statement, check whether the formula contains a term for that
+   property with the right sign or direction.
+4. Check whether the formula contains terms the idea does not mention.
+
+WHAT COUNTS AS A MISMATCH
+
+- a property the idea names has no term in the formula
+- a term has the wrong sign or direction, including a property the idea wants
+  inverted that is used as is
+- the formula contains a term the idea does not mention
+- the constants reverse a weighting the idea states, for example a term
+  described as modest outweighs one described as strong
+
+The exact constants are otherwise free. Several formulas for the same idea are
+expected to differ only in their constants, and that alone is not a mismatch.
+
+OUTPUT
+
+Write steps 1 to 4 first. Then end with exactly one of these:
+
+VERDICT: OK
+
+or
+
+VERDICT: MISMATCH
+REASON: <3-5 sentences naming each faulty term and what it should be instead,
+written so the translating model can correct the formula from it>
+
+IDEA
+{idea}
+
+FORMULA
+{formula}

@@ -3,93 +3,10 @@ idea for the heureka solver, and the error the solver reported. You do not
 invent heuristics; you express the given idea in the solver's expression
 language by fixing the error in the given formula.
 
-EXPRESSION LANGUAGE
-
-Prefix notation, tokens separated by single spaces.
-
-Operators, each taking exactly two operands:
-  +  -  *  /  ^
-
-Terms without parameters:
-  scc        order number of the argument's strongly connected component.
-             A component that attacks another gets the HIGHER number; all
-             arguments of one component share a number. Values run from 1 to
-             the number of components, so this term is large compared to all
-             others and dominates any sum unless given a small weight.
-  indeg      number of direct attackers.
-  outdeg     number of directly attacked arguments.
-  inpath     signed count of incoming attack chains up to length 3, damped by
-             0.1 per step. Direct attackers lower it, their attackers raise it.
-             Always <= 0; the maximum of 0 belongs to unattacked arguments.
-  outpath    count of outgoing attack chains up to length 5, damped by 0.25 per
-             step, all positive. Always >= 0.
-  pm         inpath plus outpath in one term.
-  extdegrat  high when the attacked arguments have a high out/in degree ratio
-             and the attacking arguments a low one. Says nothing about the
-             argument's own degree. Always > 0.
-  cb         betweenness centrality: how many shortest attack chains pass
-             through the argument. Always >= 0.
-  ceig       NEGATED eigenvector centrality. HIGH for peripheral arguments,
-             LOW for central ones. Always <= 0, and every argument that lies on
-             no cycle gets exactly 0.
-
-Terms with parameters. The numbers directly after the name belong to the term
-and are not operands of an operator:
-
-  deg <in_weight> <out_weight>
-             in_weight * indeg + out_weight * outdeg. Weights may be negative.
-
-  path <in_depth> <in_alpha> <out_depth> <out_alpha>
-             sum over j = 1..in_depth  of in_alpha^j  * (incoming chains of length j)
-           + sum over j = 1..out_depth of out_alpha^j * (outgoing chains of length j)
-
-             A NEGATIVE alpha makes odd distances count negative and even
-             distances positive. A POSITIVE alpha makes every distance count
-             positive. |alpha| sets the damping.
-
-             To switch a direction off, set its ALPHA to 0. Setting its depth to
-             0 is not enough; the length-1 term is applied regardless of depth.
-
-             path generalises five of the named terms:
-               indeg   = path 1  1    0 0
-               outdeg  = path 0  0    1 1
-               inpath  = path 3 -0.1  0 0
-               outpath = path 0  0    5 0.25
-               pm      = path 3 -0.1  5 0.25
-
-Numeric constants are allowed, including negative and fractional ones. A
-negative constant is ONE token: write "* -1 scc", never "* - 1 scc".
-
-VALIDITY CHECK
-
-Scan the expression from RIGHT to LEFT with a stack:
-  - a term or constant: push it
-  - an operator: pop two items, push one result
-
-At the end the stack must hold exactly ONE item.
-  More than one  -> too few operators. The solver silently ignores the leftover
-                    tokens, so the heuristic measured is not the one written.
-  Stack runs out -> too many operators. The solver reports a missing operand.
-
-As a cross-check: a term with parameters counts as ONE leaf ("deg 1 2" is one
-leaf, not three), and an expression with L leaves needs exactly L - 1 operators.
-
-Worked examples:
-
-  + * scc 1000 * -1 * outpath inpath
-  right to left: inpath, outpath -> *, then -1 -> *, then 1000, scc -> *, then +
-  stack ends with 1 item.  leaves 5, operators 4.   valid
-
-  / + outdeg 1 + indeg 1
-  leaves: outdeg, 1, indeg, 1 = 4;  operators: / + + = 3 = 4 - 1   valid
-
-  + cb * 0.5 deg 1 2
-  leaves: cb, 0.5, "deg 1 2" = 3;  operators: + * = 2 = 3 - 1      valid
-
 HOW TO READ THE ERROR
 
-  unknown heuristic term     a token is not in the list above, or a parameter
-                             was written where a term was expected
+  unknown heuristic term     a token is not in the term list, or a parameter was
+                             written where a term was expected
   missing a valid operand    too many operators, or an operand failed to parse
   heuristic ended early      the expression stops before all operands are filled
   expression was already
@@ -99,20 +16,8 @@ HOW TO READ THE ERROR
   different params           a parameterised term did not get its numbers, or
                              got the wrong count
 
-FURTHER RULES
-
-- Use only the terms and operators listed above. Do not invent any.
-- Do not substitute a different term for one that is missing. If the idea names
-  a quantity that no listed term measures, do not approximate it.
-- Fix the error without changing what the idea asks for. If the original formula
-  misread the idea as well, correct both.
-- The expression language has no access to the state of the search. Every term
-  above is a property of the attack graph, computed once before the search
-  starts. If the idea asks for anything that depends on the partial extension,
-  on which arguments are already accepted or ruled out, or on how the search has
-  gone so far, report it as CANNOT TRANSLATE. Do not approximate it with a
-  static term.
-- Avoid dividing by a term that can be zero.
+Fix the error without changing what the idea asks for. If the original formula
+misread the idea as well, correct both.
 
 OUTPUT
 
